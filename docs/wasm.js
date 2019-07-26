@@ -3,6 +3,11 @@
 const WASM_URL = 'wasm.wasm';
 var wasm;
 
+function handleChange(evt) {
+  console.log(evt);
+  wasm.exports.handleChange(evt.target);
+}
+
 // Load and run the wasm
 function init() {
   const go = new Go();

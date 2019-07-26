@@ -5,14 +5,28 @@ package main
 
 import (
 	"math"
+	"strconv"
 	"syscall/js"
 
 	"github.com/justinclift/webgl"
 )
 
+type uiOptions struct {
+	Value       float32
+	Slide       func(float32, float32)
+	Max         float32
+	Name        string
+	Min         float32
+	Step        float32
+	Precision   int
+	uiPrecision int
+	uiMult      float32
+}
+
 var (
 	gl *webgl.Context
 	width, height int
+	doc js.Value
 	program, positionBuffer *js.Value
 	positionAttributeLocation int
 	matrixLocation *js.Value
@@ -50,7 +64,7 @@ var (
 
 func main() {
 	// Set up the WebGL context
-	doc := js.Global().Get("document")
+	doc = js.Global().Get("document")
 	canvas := doc.Call("getElementById", "mycanvas")
 	width = canvas.Get("clientWidth").Int()
 	height = canvas.Get("clientHeight").Int()
@@ -91,31 +105,33 @@ func main() {
 	scaleVal = []float32{1, 1}
 
 	// Setup a ui
-	// TODO: Finish converting these pieces to Go
-	webglLessonsUI.setupSlider("#x", {value: translateVal[0], slide: updatePosition(0), max: width })
-	webglLessonsUI.setupSlider("#y", {value: translateVal[1], slide: updatePosition(1), max: height})
-	webglLessonsUI.setupSlider("#angle", {slide: updateAngle, max: 360})
-	webglLessonsUI.setupSlider("#scaleX", {value: scale[0], slide: updateScale(0), min: -5, max: 5, step: 0.01, precision: 2})
-	webglLessonsUI.setupSlider("#scaleY", {value: scale[1], slide: updateScale(1), min: -5, max: 5, step: 0.01, precision: 2})
+	setupSlider("#x", uiOptions{Value: translateVal[0], Slide: updatePosition(0), Max: float32(width) })
+	setupSlider("#y", uiOptions{Value: translateVal[1], Slide: updatePosition(1), Max: float32(height)})
+	// setupSlider("#angle", uiOptions{Slide: updateAngle, Max: 360})
+	setupSlider("#scaleX", uiOptions{Value: scaleVal[0], Slide: updateScale(0), Min: -5, Max: 5, Step: 0.01, Precision: 2})
+	setupSlider("#scaleY", uiOptions{Value: scaleVal[1], Slide: updateScale(1), Min: -5, Max: 5, Step: 0.01, Precision: 2})
 
 }
 
-func updatePosition(i int) {
-	return func(event, ui) {
-		translation[i] = ui.value
+//go:export updatePosition
+func updatePosition(i int) func(event, ui float32) {
+	return func(event, ui float32) {
+		translateVal[i] = ui
 		drawScene()
 	}
 }
 
-func updateAngle(event, ui) {
-	angleInDegrees = 360 - ui.value
-	angleInRadians = angleInDegrees * Math.PI / 180
+//go:export updateAngle
+func updateAngle(event, ui float32) {
+	angleInDegrees := 360 - ui
+	angleInRadians = angleInDegrees * math.Pi / 180
 	drawScene()
 }
 
-func updateScale(i int) {
-	return func(event, ui) {
-		scale[i] = ui.value
+//go:export updateScale
+func updateScale(i int) func(event, ui float32) {
+	return func(event, ui float32) {
+		scaleVal[i] = ui
 		drawScene()
 	}
 }
@@ -336,4 +352,100 @@ func scaling(sx, sy float32) []float32 {
  */
 func scale(m []float32, sx, sy float32) []float32 {
 	return multiply(m, scaling(sx, sy))
+}
+
+func setupSlider(selector string, options uiOptions) {
+	var parent = doc.Call("querySelector", selector)
+	if parent == js.Undefined() {
+		return // like jquery don't fail on a bad selector
+	}
+	if options.Name == "" {
+		options.Name = selector[1:]
+		// options.Name = selector.substring(1)
+	}
+
+	createSlider(parent, options)
+	return
+}
+
+func updateValue(e js.Value, value float32, step float32, mult float32, precision int) {
+	// Calculate the raw value for the new value
+	newVal := float64(value * step * mult)
+	e.Set("textContent", strconv.FormatFloat(newVal, 'f', precision, 32))
+}
+
+func handleChange(event js.Value) {
+	println("handleChange called")
+	// var value = parseInt(event.target.value)
+	// updateValue(value);
+	// fn(event, { value: value * step });
+}
+
+func createSlider(parent js.Value, options uiOptions) {
+	var step float32
+	var max float32
+	var uiPrecision int
+	var uiMult float32
+	precision := options.Precision
+	min := options.Min
+	value := options.Value
+	// fn := options.Slide
+	// name := options.Name
+	// gopt == getQueryParams().  Figure it out later
+	// name := gopt["ui-" + options.name] || options.Name
+	if options.Step != 0 {
+		step = 1
+	}
+	if options.Max == 0 {
+		max = 1
+	}
+	// Not an exact equivalent for the JS ternary, but should be ok to start with
+	if options.uiPrecision == 0 {
+		uiPrecision = precision
+	} else {
+		uiPrecision = options.uiPrecision
+	}
+	if options.uiMult == 0 {
+		uiMult = 1
+	}
+
+	min /= step
+	max /= step
+	value /= step
+
+	parent.Set("innerHTML", `
+      <div class="gman-widget-outer">
+        <div class="gman-widget-label">${name}</div>
+        <div class="gman-widget-value"></div>
+        <input class="gman-widget-slider" type="range" min="${min}" max="${max}" value="${value}" />
+      </div>
+    `)
+	//
+	// parent.innerHTML = `
+    //   <div class="gman-widget-outer">
+    //     <div class="gman-widget-label">${name}</div>
+    //     <div class="gman-widget-value"></div>
+    //     <input class="gman-widget-slider" type="range" min="${min}" max="${max}" value="${value}" />
+    //   </div>
+    // `;
+	valueElem := parent.Call("querySelector", ".gman-widget-value")
+	// var valueElem = parent.querySelector(".gman-widget-value");
+	sliderElem := parent.Call("querySelector", ".gman-widget-slider")
+	// var sliderElem = parent.querySelector(".gman-widget-slider");
+
+	updateValue(valueElem, value, step, uiMult, uiPrecision)
+
+	sliderElem.Call("addEventListener", "input", handleChange)
+	// sliderElem.addEventListener('input', handleChange);
+	sliderElem.Call("addEventListener", "change", handleChange)
+	// sliderElem.addEventListener('change', handleChange);
+
+	// return {
+	// elem: parent,
+	// 	updateValue: (v) => {
+	// 		v /= step;
+	// 		sliderElem.value = v;
+	// 		updateValue(v);
+	// 	},
+	// };
 }
