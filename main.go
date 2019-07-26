@@ -113,7 +113,48 @@ println("0010")
 	println("0020")
 	gl.Viewport(0, 0, width, height)
 	println("0025")
-	drawScene()
+	// drawScene()
+
+	gl.Clear(webgl.COLOR_BUFFER_BIT)
+	println("3020")
+	// Tell it to use our program (pair of shaders)
+	gl.UseProgram(program)
+	println("3030")
+	// Turn on the attribute
+	gl.EnableVertexAttribArray(positionAttributeLocation)
+	println("3040")
+	// Bind the position buffer
+	gl.BindBuffer(webgl.ARRAY_BUFFER, positionBuffer)
+	println("3050")
+	// Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+	pbSize := 2           // 2 components per iteration
+	pbType := webgl.FLOAT // the data is 32bit floats
+	pbNormalize := false  // don't normalize the data
+	pbStride := 0         // 0 = move forward size * sizeof(pbType) each iteration to get the next position
+	pbOffset := 0         // start at the beginning of the buffer
+	println("3060")
+	gl.VertexAttribPointer(positionAttributeLocation, pbSize, pbType, pbNormalize, pbStride, pbOffset)
+	println("3070")
+	// Compute the matrix
+	matrix := projection(width, height)
+	println("3080")
+	matrix = translate(matrix, translateVal[0], translateVal[1])
+	println("3090")
+	matrix = rotate(matrix, angleInRadians)
+	println("3100")
+	matrix = scale(matrix, scaleVal[0], scaleVal[1])
+	println("3110")
+	// Set the matrix
+	gl.UniformMatrix3fv(matrixLocation, false, matrix)
+	println("3120")
+	// Draw the geometry
+	primType := webgl.TRIANGLES
+	primOffset := 0
+	primCount := 3
+	println("3130")
+	gl.DrawArrays(primType, primOffset, primCount)
+
+
 	println("0030")
 }
 
