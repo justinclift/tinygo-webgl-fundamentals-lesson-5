@@ -4,8 +4,8 @@ const WASM_URL = 'wasm.wasm';
 var wasm;
 
 function handleChange(evt) {
-  console.log(evt);
-  wasm.exports.handleChange(evt.target);
+  // console.log(evt);
+  wasm.exports.handleChange(evt.target.value);
 }
 
 // Load and run the wasm

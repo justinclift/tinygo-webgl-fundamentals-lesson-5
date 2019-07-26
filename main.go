@@ -79,7 +79,7 @@ func main() {
 	}
 
 	// * WebGL initialisation code *
-
+println("0010")
 	// Create GLSL shaders, upload the GLSL source, compile the shaders
 	vertexShader := createShader(gl, webgl.VERTEX_SHADER, vertCode)
 	fragmentShader := createShader(gl, webgl.FRAGMENT_SHADER, fragCode)
@@ -110,7 +110,11 @@ func main() {
 	// setupSlider("#angle", uiOptions{Slide: updateAngle, Max: 360})
 	setupSlider("#scaleX", uiOptions{Value: scaleVal[0], Slide: updateScale(0), Min: -5, Max: 5, Step: 0.01, Precision: 2})
 	setupSlider("#scaleY", uiOptions{Value: scaleVal[1], Slide: updateScale(1), Min: -5, Max: 5, Step: 0.01, Precision: 2})
-
+	println("0020")
+	gl.Viewport(0, 0, width, height)
+	println("0025")
+	drawScene()
+	println("0030")
 }
 
 //go:export updatePosition
@@ -138,44 +142,53 @@ func updateScale(i int) func(event, ui float32) {
 
 // WebGL rendering code
 func drawScene() {
+	println("3000")
 	// Tell WebGL how to convert from clip space to pixels
+	println("Width: " + strconv.FormatInt(int64(width), 10))
+	println("Height: " + strconv.FormatInt(int64(height), 10))
 	gl.Viewport(0, 0, width, height)
-
+	println("3010")
 	// Clear the canvas
 	// gl.ClearColor(0, 0, 0, 0)
 	gl.Clear(webgl.COLOR_BUFFER_BIT)
-
+	println("3020")
 	// Tell it to use our program (pair of shaders)
 	gl.UseProgram(program)
-
+	println("3030")
 	// Turn on the attribute
 	gl.EnableVertexAttribArray(positionAttributeLocation)
-
+	println("3040")
 	// Bind the position buffer
 	gl.BindBuffer(webgl.ARRAY_BUFFER, positionBuffer)
-
+	println("3050")
 	// Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
 	pbSize := 2           // 2 components per iteration
 	pbType := webgl.FLOAT // the data is 32bit floats
 	pbNormalize := false  // don't normalize the data
 	pbStride := 0         // 0 = move forward size * sizeof(pbType) each iteration to get the next position
 	pbOffset := 0         // start at the beginning of the buffer
+	println("3060")
 	gl.VertexAttribPointer(positionAttributeLocation, pbSize, pbType, pbNormalize, pbStride, pbOffset)
-
+	println("3070")
 	// Compute the matrix
 	matrix := projection(width, height)
+	println("3080")
 	matrix = translate(matrix, translateVal[0], translateVal[1])
+	println("3090")
 	matrix = rotate(matrix, angleInRadians)
+	println("3100")
 	matrix = scale(matrix, scaleVal[0], scaleVal[1])
-
+	println("3110")
 	// Set the matrix
 	gl.UniformMatrix3fv(matrixLocation, false, matrix)
-
+	println("3120")
 	// Draw the geometry
 	primType := webgl.TRIANGLES
 	primOffset := 0
 	primCount := 3
+	println("3130")
 	gl.DrawArrays(primType, primOffset, primCount)
+	println("3140")
 }
 
 func createShader(gl *webgl.Context, shaderType int, source string) *js.Value {
@@ -355,16 +368,22 @@ func scale(m []float32, sx, sy float32) []float32 {
 }
 
 func setupSlider(selector string, options uiOptions) {
+println("1000")
 	var parent = doc.Call("querySelector", selector)
+println("1010")
 	if parent == js.Undefined() {
+		println("1020")
 		return // like jquery don't fail on a bad selector
 	}
+	println("1030")
 	if options.Name == "" {
+		println("1040")
 		options.Name = selector[1:]
 		// options.Name = selector.substring(1)
 	}
-
+	println("1050")
 	createSlider(parent, options)
+	println("1060")
 	return
 }
 
@@ -374,72 +393,93 @@ func updateValue(e js.Value, value float32, step float32, mult float32, precisio
 	e.Set("textContent", strconv.FormatFloat(newVal, 'f', precision, 32))
 }
 
-func handleChange(event js.Value) {
-	println("handleChange called")
+//go:export handleChange
+func handleChange(value int) {
+// func handleChange(event js.Value) {
+	println("handleChange called with value of: " + strconv.FormatInt(int64(value), 10))
 	// var value = parseInt(event.target.value)
 	// updateValue(value);
 	// fn(event, { value: value * step });
 }
 
 func createSlider(parent js.Value, options uiOptions) {
+	println("2000")
 	var step float32
 	var max float32
 	var uiPrecision int
 	var uiMult float32
+	println("2010")
 	precision := options.Precision
+	println("2020")
 	min := options.Min
+	println("2030")
 	value := options.Value
+	println("2040")
 	// fn := options.Slide
-	// name := options.Name
+	name := options.Name
 	// gopt == getQueryParams().  Figure it out later
 	// name := gopt["ui-" + options.name] || options.Name
 	if options.Step != 0 {
+		println("2050")
 		step = 1
 	}
+	println("2060")
 	if options.Max == 0 {
+		println("2070")
 		max = 1
 	}
+	println("2080")
 	// Not an exact equivalent for the JS ternary, but should be ok to start with
 	if options.uiPrecision == 0 {
+		println("2090")
 		uiPrecision = precision
+		println("2100")
 	} else {
+		println("2110")
 		uiPrecision = options.uiPrecision
+		println("2120")
 	}
+	println("2130")
 	if options.uiMult == 0 {
+		println("2140")
 		uiMult = 1
+		println("2150")
 	}
-
+	println("2160")
 	min /= step
+	println("2170")
 	max /= step
+	println("2180")
 	value /= step
+	println("2190")
 
-	parent.Set("innerHTML", `
-      <div class="gman-widget-outer">
-        <div class="gman-widget-label">${name}</div>
-        <div class="gman-widget-value"></div>
-        <input class="gman-widget-slider" type="range" min="${min}" max="${max}" value="${value}" />
-      </div>
-    `)
-	//
+	parent.Set("innerHTML", `<div class="gman-widget-outer">
+		<div class="gman-widget-label">` + name + `</div>
+		<div class="gman-widget-value"></div>
+		<input class="gman-widget-slider" type="range" min="` + strconv.FormatFloat(float64(min), 'f', 1, 32) + `" max="` + strconv.FormatFloat(float64(max), 'f', 1, 32) + `" value="` + strconv.FormatFloat(float64(value), 'f', 1, 32) + `" />
+	</div>`)
+	println("2200")
 	// parent.innerHTML = `
     //   <div class="gman-widget-outer">
     //     <div class="gman-widget-label">${name}</div>
     //     <div class="gman-widget-value"></div>
     //     <input class="gman-widget-slider" type="range" min="${min}" max="${max}" value="${value}" />
-    //   </div>
-    // `;
+    //   </div>`;
 	valueElem := parent.Call("querySelector", ".gman-widget-value")
 	// var valueElem = parent.querySelector(".gman-widget-value");
+	println("2210")
 	sliderElem := parent.Call("querySelector", ".gman-widget-slider")
 	// var sliderElem = parent.querySelector(".gman-widget-slider");
-
+	println("2220")
 	updateValue(valueElem, value, step, uiMult, uiPrecision)
-
-	sliderElem.Call("addEventListener", "input", handleChange)
+	println("2230")
+	hcJS := js.Global().Get("handleChange")
+	sliderElem.Call("addEventListener", "input", hcJS)
 	// sliderElem.addEventListener('input', handleChange);
-	sliderElem.Call("addEventListener", "change", handleChange)
+	println("2240")
+	sliderElem.Call("addEventListener", "change", hcJS)
 	// sliderElem.addEventListener('change', handleChange);
-
+	println("2250")
 	// return {
 	// elem: parent,
 	// 	updateValue: (v) => {
